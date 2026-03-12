@@ -26,10 +26,27 @@ function fail(message, extra) {
   process.exit(1);
 }
 
-function readConfig() {
-  const cfgPath = 'C:/Users/vip20/.openclaw/openclaw.json';
-  if (!fs.existsSync(cfgPath)) fail('OpenClaw config not found', { cfgPath });
-  return JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+function candidateConfigPaths(explicitPath) {
+  const candidates = [];
+  if (explicitPath) candidates.push(path.resolve(explicitPath));
+
+  const envPaths = [process.env.OPENCLAW_CONFIG, process.env.OPENCLAW_CONFIG_PATH].filter(Boolean);
+  for (const envPath of envPaths) candidates.push(path.resolve(envPath));
+
+  const home = process.env.USERPROFILE || process.env.HOME || '';
+  if (home) candidates.push(path.join(home, '.openclaw', 'openclaw.json'));
+
+  return [...new Set(candidates)];
+}
+
+function readConfig(explicitPath) {
+  const candidates = candidateConfigPaths(explicitPath);
+  const cfgPath = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!cfgPath) fail('OpenClaw config not found', { candidates });
+  return {
+    cfgPath,
+    cfg: JSON.parse(fs.readFileSync(cfgPath, 'utf8'))
+  };
 }
 
 function resolveAccount(cfg, accountName) {
@@ -172,7 +189,7 @@ async function main() {
   if (!type) fail('Missing --type');
   if (!target) fail('Missing --target');
 
-  const cfg = readConfig();
+  const { cfgPath, cfg } = readConfig(args.config ? String(args.config).trim() : '');
   const { resolvedName, account } = resolveAccount(cfg, args.account ? String(args.account).trim() : '');
   const token = await getTenantToken(account);
 
@@ -203,6 +220,7 @@ async function main() {
     ok: true,
     type,
     account: resolvedName,
+    config_path: cfgPath,
     target,
     receive_id_type: receiveIdType,
     message_id: result.message_id,

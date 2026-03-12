@@ -23,15 +23,21 @@ Optional:
 ```bash
 --account main
 --receive-id-type open_id
+--config /path/to/openclaw.json
 ```
 
 ## Config source
 
-The script reads Feishu credentials from:
+The script does not assume one hard-coded machine path.
 
-`C:\Users\vip20\.openclaw\openclaw.json`
+It resolves OpenClaw config in this order:
 
-It expects:
+1. `--config <path>`
+2. `OPENCLAW_CONFIG`
+3. `OPENCLAW_CONFIG_PATH`
+4. default home config: `~/.openclaw/openclaw.json`
+
+It expects Feishu credentials under:
 
 - `channels.feishu.accounts.main.appId`
 - `channels.feishu.accounts.main.appSecret`

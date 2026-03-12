@@ -44,7 +44,7 @@ Optional args:
 
 ## Workflow
 
-1. Read `C:\Users\vip20\.openclaw\openclaw.json`
+1. Resolve OpenClaw config from `--config`, `OPENCLAW_CONFIG`, `OPENCLAW_CONFIG_PATH`, or the default `~/.openclaw/openclaw.json`
 2. Resolve Feishu account credentials from `channels.feishu.accounts`
 3. Get `app_access_token` via `POST /open-apis/auth/v3/app_access_token/internal`
 4. Depending on type:
