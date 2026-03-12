@@ -1,0 +1,7 @@
+*.log
+*.tmp
+*.png
+*.jpg
+*.jpeg
+*.pdf
+node_modules/
