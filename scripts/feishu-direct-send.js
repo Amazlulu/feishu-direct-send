@@ -34,11 +34,12 @@ function readConfig() {
 
 function resolveAccount(cfg, accountName) {
   const accounts = cfg.channels?.feishu?.accounts || {};
-  const preferred = accountName ? accounts[accountName] : accounts.main || accounts.default;
+  const resolvedName = accountName || (accounts.main ? 'main' : 'default');
+  const preferred = accounts[resolvedName];
   if (!preferred?.appId || !preferred?.appSecret) {
-    fail('Missing Feishu credentials in openclaw config', { account: accountName || 'main/default' });
+    fail('Missing Feishu credentials in openclaw config', { account: resolvedName });
   }
-  return preferred;
+  return { resolvedName, account: preferred };
 }
 
 function inferReceiveIdType(target, explicit) {
@@ -47,6 +48,23 @@ function inferReceiveIdType(target, explicit) {
   if (target.startsWith('ou_') || target.startsWith('on_')) return 'open_id';
   if (target.startsWith('oc_')) return 'chat_id';
   fail('Could not infer receive_id_type from target', { target });
+}
+
+function guessContentType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const contentTypes = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.pdf': 'application/pdf',
+    '.txt': 'text/plain',
+    '.csv': 'text/csv',
+    '.json': 'application/json',
+    '.zip': 'application/zip'
+  };
+  return contentTypes[ext] || 'application/octet-stream';
 }
 
 function buildMultipartBody(fieldName, filePath, contentType, extraFields) {
@@ -77,19 +95,28 @@ function buildMultipartBody(fieldName, filePath, contentType, extraFields) {
   };
 }
 
+async function parseJsonResponse(resp, fallbackLabel) {
+  const text = await resp.text();
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    fail(`Unexpected ${fallbackLabel} response`, { status: resp.status, body: text });
+  }
+}
+
 async function getTenantToken(account) {
   const resp = await fetch('https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify({ app_id: account.appId, app_secret: account.appSecret })
   });
-  const json = await resp.json();
+  const json = await parseJsonResponse(resp, 'token');
   if (json.code !== 0 || !json.app_access_token) fail('Failed to get Feishu app access token', json);
   return json.app_access_token;
 }
 
 async function uploadImage(token, filePath) {
-  const { boundary, body } = buildMultipartBody('image', filePath, 'image/png', { image_type: 'message' });
+  const { boundary, body } = buildMultipartBody('image', filePath, guessContentType(filePath), { image_type: 'message' });
   const resp = await fetch('https://open.feishu.cn/open-apis/im/v1/images', {
     method: 'POST',
     headers: {
@@ -98,13 +125,13 @@ async function uploadImage(token, filePath) {
     },
     body
   });
-  const json = await resp.json();
+  const json = await parseJsonResponse(resp, 'image upload');
   if (json.code !== 0 || !json.data?.image_key) fail('Failed to upload image', json);
   return json.data.image_key;
 }
 
 async function uploadFile(token, filePath) {
-  const { boundary, body } = buildMultipartBody('file', filePath, 'application/octet-stream', { file_type: 'stream' });
+  const { boundary, body } = buildMultipartBody('file', filePath, guessContentType(filePath), { file_type: 'stream' });
   const resp = await fetch('https://open.feishu.cn/open-apis/im/v1/files', {
     method: 'POST',
     headers: {
@@ -113,7 +140,7 @@ async function uploadFile(token, filePath) {
     },
     body
   });
-  const json = await resp.json();
+  const json = await parseJsonResponse(resp, 'file upload');
   if (json.code !== 0 || !json.data?.file_key) fail('Failed to upload file', json);
   return json.data.file_key;
 }
@@ -131,7 +158,7 @@ async function sendMessage(token, receiveIdType, target, msgType, content) {
       content: JSON.stringify(content)
     })
   });
-  const json = await resp.json();
+  const json = await parseJsonResponse(resp, 'message send');
   if (json.code !== 0 || !json.data?.message_id) fail('Failed to send Feishu message', json);
   return json.data;
 }
@@ -140,14 +167,13 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const type = String(args.type || '').trim();
   const target = String(args.target || '').trim();
-  const accountName = args.account ? String(args.account).trim() : '';
   const receiveIdType = inferReceiveIdType(target, args['receive-id-type'] ? String(args['receive-id-type']).trim() : '');
 
   if (!type) fail('Missing --type');
   if (!target) fail('Missing --target');
 
   const cfg = readConfig();
-  const account = resolveAccount(cfg, accountName);
+  const { resolvedName, account } = resolveAccount(cfg, args.account ? String(args.account).trim() : '');
   const token = await getTenantToken(account);
 
   let result;
@@ -176,7 +202,7 @@ async function main() {
   console.log(JSON.stringify({
     ok: true,
     type,
-    account: accountName || (cfg.channels?.feishu?.accounts?.main ? 'main' : 'default'),
+    account: resolvedName,
     target,
     receive_id_type: receiveIdType,
     message_id: result.message_id,

@@ -44,7 +44,30 @@ or another named account.
 - `oc_` targets are treated as group chats (`chat_id`)
 - text goes straight to send
 - image/file uploads happen before send
+- the script now guesses file content type from extension instead of forcing every image to png
+- error output is JSON so failures are easier to automate and debug
+
+## Validation ideas
+
+You can verify with these commands:
+
+```bash
+node scripts/feishu-direct-send.js --type text --text "smoke test" --target ou_xxx
+node scripts/feishu-direct-send.js --type file --path ./README.md --target ou_xxx
+```
 
 ## Security
 
 Do not commit secrets, configs, or captured screenshots.
+
+## Git workflow
+
+Recommended workflow for future automation:
+
+```bash
+git add .
+git commit -m "your change"
+git push
+```
+
+This repository is intended to be maintained as a standalone reusable skill.
