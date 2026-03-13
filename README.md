@@ -9,12 +9,14 @@ This skill bypasses OpenClaw's wrapped Feishu message path and talks to Feishu O
 - text
 - image
 - file
+- video files sent through the same file upload route, such as `.mp4`
 
 ## Script
 
 ```bash
 node scripts/feishu-direct-send.js --type image --path ./demo.png --target ou_xxx
 node scripts/feishu-direct-send.js --type file --path ./report.pdf --target oc_xxx
+node scripts/feishu-direct-send.js --type file --path ./demo.mp4 --target ou_xxx
 node scripts/feishu-direct-send.js --type text --text "hello" --target ou_xxx
 ```
 
@@ -50,6 +52,7 @@ or another named account.
 - `oc_` targets are treated as group chats (`chat_id`)
 - text goes straight to send
 - image/file uploads happen before send
+- `.mp4` review videos can be delivered through the same file upload path
 - the script now guesses file content type from extension instead of forcing every image to png
 - error output is JSON so failures are easier to automate and debug
 

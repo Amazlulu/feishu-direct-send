@@ -20,6 +20,7 @@ Trigger this skill when:
 - `text`
 - `image`
 - `file`
+- video files sent through the `file` route (for example `.mp4` uploads to Feishu chats)
 
 ## Preferred entrypoint
 
@@ -28,6 +29,7 @@ Use the bundled script:
 ```bash
 node scripts/feishu-direct-send.js --type image --path ./demo.png --target ou_xxx
 node scripts/feishu-direct-send.js --type file --path ./report.pdf --target oc_xxx
+node scripts/feishu-direct-send.js --type file --path ./demo.mp4 --target ou_xxx
 node scripts/feishu-direct-send.js --type text --text "hello" --target ou_xxx
 ```
 
@@ -85,3 +87,7 @@ The script prints JSON with:
 ## Implementation note
 
 This skill exists because a direct API route can be more reliable than the current wrapper layer for Feishu media delivery.
+
+Recent validation:
+- successfully used the direct file upload + send path to deliver an `.mp4` video draft into a Feishu DM
+- this confirms the same route can be used for video review workflows, not just static files and images
